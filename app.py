@@ -53,16 +53,21 @@ def decode_meesho_metadata(encoded_str):
         return {}
 
 def get_clean_headers(referer="", custom_cookie="", custom_ua=""):
-    """Generates WAF-friendly headers matching the Chrome 120 impersonation"""
-    # Force Chrome 120 User-Agent to match the curl_cffi impersonate="chrome120" parameter
-    default_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    """Generates ultra-strict WAF-friendly headers matching Safari 15.5"""
+    # Switching to Safari as its TLS fingerprint is less scrutinized than Chrome's
+    default_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15"
     
     headers = {
         "User-Agent": custom_ua if custom_ua else default_ua,
         "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
         "Content-Type": "application/json",
         "MEESHO-ISO-COUNTRY-CODE": "IN",
         "Origin": "https://www.meesho.com",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+        "Connection": "keep-alive"
     }
     
     if referer:
@@ -91,14 +96,15 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
 
     try:
         if HAS_CFFI:
-            response = tls_requests.post(url, headers=headers, json=payload, impersonate="chrome120", timeout=15)
+            # Changed impersonate to safari15_5 to drastically alter the TLS fingerprint
+            response = tls_requests.post(url, headers=headers, json=payload, impersonate="safari15_5", timeout=15)
         else:
             response = requests.post(url, headers=headers, json=payload, timeout=10)
             
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 403:
-            st.error("API Error 403: WAF Blocked. \n\n**Note for Streamlit Cloud:** If cookies don't work, Meesho has hard-banned Streamlit's Datacenter IP addresses. You may be forced to run this locally on your PC.")
+            st.error("API Error 403: WAF Blocked. \n\n**Note for Streamlit Cloud:** Meesho's Web Application Firewall (Cloudflare/Akamai) is instantly blocking the Datacenter IP Streamlit is hosted on. You must run this locally on your own computer to bypass IP reputation bans.")
             return None
         else:
             st.error(f"API Error: {response.status_code}")
@@ -114,7 +120,7 @@ def fetch_supplier_profile(handle, custom_cookie="", custom_ua=""):
 
     try:
         if HAS_CFFI:
-            response = tls_requests.get(url, headers=headers, impersonate="chrome120", timeout=15)
+            response = tls_requests.get(url, headers=headers, impersonate="safari15_5", timeout=15)
         else:
             response = requests.get(url, headers=headers, timeout=10)
             
@@ -147,7 +153,7 @@ def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="
     }
     try:
         if HAS_CFFI:
-            response = tls_requests.post(url, headers=headers, json=payload, impersonate="chrome120", timeout=15)
+            response = tls_requests.post(url, headers=headers, json=payload, impersonate="safari15_5", timeout=15)
         else:
             response = requests.post(url, headers=headers, json=payload, timeout=10)
             
