@@ -316,6 +316,13 @@ with st.sidebar:
     max_age_filter = st.number_input("Max Product Age (Days)", min_value=0, value=0, help="Find new viral products! E.g. Set to 30 to only show products listed in the last month. 0 = No limit.")
     min_velocity = st.number_input("Minimum Velocity Filter (Ratings/Day)", min_value=0.0, value=0.0, step=0.5)
 
+    st.divider()
+    st.header("🌐 Cloud Bypass (Proxies)")
+    st.warning("If hosted on Streamlit Cloud, Meesho's Akamai Firewall will block the server IP. Use a Residential Proxy to bypass this.")
+    proxy_url = st.text_input("Proxy URL", help="Format: http://username:password@ip:port (e.g., from Webshare or BrightData)")
+    
+    proxy_dict = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+
 # ------------------------------------------
 # SEARCH ACTION LOGIC
 # ------------------------------------------
@@ -343,12 +350,30 @@ if analyze_clicked:
             st.write(f"Fetching page {p}...")
 
             if search_mode == "Keyword Search":
-                raw_data = fetch_meesho_data(search_query, fetch_limit, st.session_state.page, st.session_state.offset, st.session_state.cursor, st.session_state.search_session_id, cookie_input, ua_input)
+                raw_data = fetch_meesho_data(
+                    search_query, 
+                    fetch_limit, 
+                    st.session_state.page, 
+                    st.session_state.offset, 
+                    st.session_state.cursor, 
+                    st.session_state.search_session_id, 
+                    cookie_input, 
+                    ua_input,
+                    proxy_dict # Pass proxy here
+                )
                 if raw_data:
                     st.session_state.cursor = raw_data.get('cursor')
                     st.session_state.search_session_id = raw_data.get('search_session_id')
             else:
-                raw_data = fetch_supplier_feed(st.session_state.supplier_id, supplier_handle, fetch_limit, st.session_state.offset, cookie_input, ua_input)
+                raw_data = fetch_supplier_feed(
+                    st.session_state.supplier_id, 
+                    supplier_handle, 
+                    fetch_limit, 
+                    st.session_state.offset, 
+                    cookie_input, 
+                    ua_input,
+                    proxy_dict # Pass proxy here
+                )
 
             if not raw_data:
                 st.write("Stopped due to API constraints or no more data.")
