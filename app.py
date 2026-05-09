@@ -52,28 +52,30 @@ def decode_meesho_metadata(encoded_str):
     except Exception:
         return {}
 
-def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_session_id=None, custom_cookie="", custom_ua=""):
-    url = "https://www.meesho.com/api/v1/products/search"
-    ua = custom_ua if custom_ua else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+def get_clean_headers(referer="", custom_cookie="", custom_ua=""):
+    """Generates WAF-friendly headers matching the Chrome 120 impersonation"""
+    # Force Chrome 120 User-Agent to match the curl_cffi impersonate="chrome120" parameter
+    default_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     
     headers = {
-        "User-Agent": ua,
+        "User-Agent": custom_ua if custom_ua else default_ua,
         "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
         "Content-Type": "application/json",
-        "Origin": "https://www.meesho.com",
-        "Referer": f"https://www.meesho.com/search?q={query.replace(' ', '%20')}",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
         "MEESHO-ISO-COUNTRY-CODE": "IN",
-        "X-WISHLIST-AGGREGATION-REQUIRED": "true",
-        "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"'
+        "Origin": "https://www.meesho.com",
     }
+    
+    if referer:
+        headers["Referer"] = referer
     if custom_cookie:
         headers["Cookie"] = custom_cookie
+        
+    return headers
+
+def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_session_id=None, custom_cookie="", custom_ua=""):
+    url = "https://www.meesho.com/api/v1/products/search"
+    referer = f"https://www.meesho.com/search?q={query.replace(' ', '%20')}"
+    headers = get_clean_headers(referer, custom_cookie, custom_ua)
 
     payload = {
         "query": query,
@@ -96,7 +98,7 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 403:
-            st.error("API Error 403: WAF Blocked the request. Please see the 'Security' section in the sidebar.")
+            st.error("API Error 403: WAF Blocked. \n\n**Note for Streamlit Cloud:** If cookies don't work, Meesho has hard-banned Streamlit's Datacenter IP addresses. You may be forced to run this locally on your PC.")
             return None
         else:
             st.error(f"API Error: {response.status_code}")
@@ -107,24 +109,8 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
 
 def fetch_supplier_profile(handle, custom_cookie="", custom_ua=""):
     url = f"https://www.meesho.com/api/v1/meri-shop/profile?supplierHandle={handle}"
-    ua = custom_ua if custom_ua else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
-    
-    headers = {
-        "User-Agent": ua,
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Origin": "https://www.meesho.com",
-        "Referer": f"https://www.meesho.com/{handle}?ms=2",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
-        "MEESHO-ISO-COUNTRY-CODE": "IN",
-        "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"'
-    }
-    if custom_cookie:
-        headers["Cookie"] = custom_cookie
+    referer = f"https://www.meesho.com/{handle}?ms=2"
+    headers = get_clean_headers(referer, custom_cookie, custom_ua)
 
     try:
         if HAS_CFFI:
@@ -144,25 +130,8 @@ def fetch_supplier_profile(handle, custom_cookie="", custom_ua=""):
 
 def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="", custom_ua=""):
     url = "https://www.meesho.com/api/v1/meri-shop/feed"
-    ua = custom_ua if custom_ua else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
-    
-    headers = {
-        "User-Agent": ua,
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Content-Type": "application/json",
-        "MEESHO-ISO-COUNTRY-CODE": "IN",
-        "Origin": "https://www.meesho.com",
-        "Referer": f"https://www.meesho.com/{handle}?ms=2&Sort[sort_by]=created&Sort[sort_order]=desc",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin",
-        "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"'
-    }
-    if custom_cookie:
-        headers["Cookie"] = custom_cookie
+    referer = f"https://www.meesho.com/{handle}?ms=2&Sort[sort_by]=created&Sort[sort_order]=desc"
+    headers = get_clean_headers(referer, custom_cookie, custom_ua)
 
     payload = {
         "limit": limit,
