@@ -103,11 +103,15 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
             
         if response.status_code == 200:
             return response.json()
-        elif response.status_code == 403:
-            st.error("API Error 403: WAF Blocked. \n\n**Note for Streamlit Cloud:** Meesho's Web Application Firewall (Cloudflare/Akamai) is instantly blocking the Datacenter IP Streamlit is hosted on. You must run this locally on your own computer to bypass IP reputation bans.")
-            return None
         else:
             st.error(f"API Error: {response.status_code}")
+            with st.expander("🔍 View Raw Debug Info (Headers & Response)"):
+                st.write("**Request Headers Sent:**")
+                st.json(dict(response.request.headers))
+                st.write("**Response Headers Received:**")
+                st.json(dict(response.headers))
+                st.write("**Response Body:**")
+                st.code(response.text, language="html")
             return None
     except Exception as e:
         st.error(f"Connection Error: {e}")
@@ -127,10 +131,14 @@ def fetch_supplier_profile(handle, custom_cookie="", custom_ua=""):
         if response.status_code == 200:
             data = response.json()
             return data.get("profile", {}).get("masked_id")
-        elif response.status_code == 403:
-            st.error("Profile API Error 403: Forbidden. Blocked by WAF.")
+        else:
+            st.error(f"Profile API Error: {response.status_code}")
+            with st.expander("🔍 View Raw Debug Info (Headers & Response)"):
+                st.write("**Response Headers Received:**")
+                st.json(dict(response.headers))
+                st.write("**Response Body:**")
+                st.code(response.text, language="html")
             return None
-        return None
     except Exception:
         return None
 
@@ -159,10 +167,14 @@ def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="
             
         if response.status_code == 200:
             return response.json()
-        elif response.status_code == 403:
-            st.error("Feed API Error 403: Forbidden. Blocked by WAF.")
+        else:
+            st.error(f"Feed API Error: {response.status_code}")
+            with st.expander("🔍 View Raw Debug Info (Headers & Response)"):
+                st.write("**Response Headers Received:**")
+                st.json(dict(response.headers))
+                st.write("**Response Body:**")
+                st.code(response.text, language="html")
             return None
-        return None
     except Exception:
         return None
 
