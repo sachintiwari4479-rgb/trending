@@ -9,8 +9,8 @@ from datetime import datetime
 # PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(
-    page_title="Meesho Trend Finder",
-    page_icon="📈",
+    page_title="Meesho Trend Finder", 
+    page_icon="📈", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -29,7 +29,6 @@ if "all_products" not in st.session_state:
     st.session_state.supplier_id = None
     st.session_state.supplier_handle = ""
 
-
 # ==========================================
 # HELPER FUNCTIONS
 # ==========================================
@@ -46,8 +45,7 @@ def decode_meesho_metadata(encoded_str):
     except Exception:
         return {}
 
-
-def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_session_id=None, custom_cookie=""):
+def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_session_id=None, custom_cookie="", custom_ua=""):
     url = "https://www.meesho.com/api/v1/products/search"
     # Reverted back to your exact original headers for localhost compatibility
     headers = {
@@ -59,7 +57,7 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
         "Sec-Fetch-Dest": "empty",
         "MEESHO-ISO-COUNTRY-CODE": "IN",
         "X-WISHLIST-AGGREGATION-REQUIRED": "true",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+        "User-Agent": custom_ua if custom_ua else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
         "Origin": "https://www.meesho.com",
@@ -86,8 +84,7 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 403:
-            st.error(
-                "API Error 403: Forbidden. Meesho blocked the request. Please provide a fresh Cookie in the sidebar.")
+            st.error("API Error 403: Forbidden. Meesho blocked the datacenter IP. Please provide a fresh Cookie and User-Agent in the sidebar.")
             return None
         else:
             st.error(f"API Error: {response.status_code}")
@@ -96,8 +93,7 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
         st.error(f"Connection Error: {e}")
         return None
 
-
-def fetch_supplier_profile(handle, custom_cookie=""):
+def fetch_supplier_profile(handle, custom_cookie="", custom_ua=""):
     url = f"https://www.meesho.com/api/v1/meri-shop/profile?supplierHandle={handle}"
     headers = {
         "sec-ch-ua-platform": '"Windows"',
@@ -106,7 +102,7 @@ def fetch_supplier_profile(handle, custom_cookie=""):
         "Sec-Fetch-Site": "same-origin",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Dest": "empty",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+        "User-Agent": custom_ua if custom_ua else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
         "MEESHO-ISO-COUNTRY-CODE": "IN",
         "Origin": "https://www.meesho.com",
@@ -128,12 +124,11 @@ def fetch_supplier_profile(handle, custom_cookie=""):
     except Exception:
         return None
 
-
-def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie=""):
+def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="", custom_ua=""):
     url = "https://www.meesho.com/api/v1/meri-shop/feed"
     headers = {
         "sec-ch-ua-platform": '"Windows"',
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+        "User-Agent": custom_ua if custom_ua else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
         "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
         "Content-Type": "application/json",
@@ -171,7 +166,6 @@ def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="
         return None
     except Exception:
         return None
-
 
 def process_catalogs(raw_data):
     parsed_list = []
@@ -213,8 +207,7 @@ def process_catalogs(raw_data):
         rto_cod_percent = meta_decoded.get('rtoPercentageCod')
 
         rto_risk = round(rto_cod_percent, 3) if rto_cod_percent is not None else None
-        profit_gap = (serving_price - supplier_price) if (
-                    serving_price is not None and supplier_price is not None) else None
+        profit_gap = (serving_price - supplier_price) if (serving_price is not None and supplier_price is not None) else None
 
         age_days = 1
         if created_date_str:
@@ -228,7 +221,7 @@ def process_catalogs(raw_data):
         velocity = round(rating_count / age_days, 2)
         est_orders_per_day = round(velocity / 0.15, 2)
         safe_rto = rto_risk if rto_risk is not None else 0.50
-
+        
         # Improved Trend Score: Higher emphasis on Velocity and Avg Rating
         trend_score = round(velocity * avg_rating * (1 - safe_rto), 2)
 
@@ -259,7 +252,6 @@ def process_catalogs(raw_data):
 
     return parsed_list
 
-
 # ==========================================
 # MAIN APP UI & SIDEBAR
 # ==========================================
@@ -268,23 +260,19 @@ st.markdown("Discover winning products automatically by analyzing **Velocity, Ra
 
 with st.sidebar:
     st.header("Search Mode")
-    search_mode = st.radio("Search Mode", ["Keyword Search", "Store/Supplier Search"], horizontal=True,
-                           label_visibility="collapsed")
+    search_mode = st.radio("Search Mode", ["Keyword Search", "Store/Supplier Search"], horizontal=True, label_visibility="collapsed")
 
     search_query = ""
     supplier_handle = ""
 
     if search_mode == "Keyword Search":
-        auto_category = st.selectbox("Quick Niche",
-                                     ["Custom Search...", "Smartwatches", "Home Decor", "Sarees", "Kitchen Gadgets",
-                                      "Makeup", "Toys", "Mens T-shirts"])
+        auto_category = st.selectbox("Quick Niche", ["Custom Search...", "Smartwatches", "Home Decor", "Sarees", "Kitchen Gadgets", "Makeup", "Toys", "Mens T-shirts"])
         if auto_category == "Custom Search...":
             search_query = st.text_input("Product Keyword", value="photo sketch")
         else:
             search_query = auto_category
     else:
-        supplier_handle = st.text_input("Supplier Handle", value="ShreeRadhaRaniPrints",
-                                        help="Found in the Meesho URL (e.g. www.meesho.com/ShreeRadhaRaniPrints)")
+        supplier_handle = st.text_input("Supplier Handle", value="ShreeRadhaRaniPrints", help="Found in the Meesho URL (e.g. www.meesho.com/ShreeRadhaRaniPrints)")
 
     # Button moved directly below inputs
     btn_label = f"🔍 Analyze '{search_query}' Trends" if search_mode == "Keyword Search" else f"🏪 Analyze Store '{supplier_handle}'"
@@ -293,23 +281,22 @@ with st.sidebar:
     st.divider()
 
     st.header("Security & Authentication")
-    cookie_input = st.text_input("Meesho Cookie (Optional but recommended)", type="password",
-                                 help="Go to Meesho -> F12 (Network) -> Search something -> Click 'search' request -> Copy 'Cookie' from Request Headers.")
+    st.warning("☁️ **Cloud Fix:** If hosted on Streamlit Cloud, you **MUST** provide a Cookie below to bypass the 403 block.")
+    cookie_input = st.text_input("Meesho Cookie", type="password", help="Go to Meesho -> F12 (Network) -> Search something -> Click 'search' request -> Copy 'Cookie' from Request Headers.")
+    ua_input = st.text_input("Browser User-Agent (Optional)", help="If the cookie alone fails on Streamlit, copy your browser's exact User-Agent string here.")
 
     st.divider()
     st.header("Deep Search Settings")
     fetch_limit = st.slider("Products Per Page", min_value=20, max_value=200, value=50, step=10)
 
-    auto_fetch_deep = st.toggle("🤖 Auto-Fetch Multiple Pages", value=False,
-                                help="Automatically scrolls and fetches next pages until no more products are found or limit is reached.")
+    auto_fetch_deep = st.toggle("🤖 Auto-Fetch Multiple Pages", value=False, help="Automatically scrolls and fetches next pages until no more products are found or limit is reached.")
     max_pages = 1
     if auto_fetch_deep:
         max_pages = st.slider("Max Pages to Auto-Fetch", min_value=2, max_value=50, value=5)
 
     st.divider()
     st.header("Viral Product Filters")
-    max_age_filter = st.number_input("Max Product Age (Days)", min_value=0, value=0,
-                                     help="Find new viral products! E.g. Set to 30 to only show products listed in the last month. 0 = No limit.")
+    max_age_filter = st.number_input("Max Product Age (Days)", min_value=0, value=0, help="Find new viral products! E.g. Set to 30 to only show products listed in the last month. 0 = No limit.")
     min_velocity = st.number_input("Minimum Velocity Filter (Ratings/Day)", min_value=0.0, value=0.0, step=0.5)
 
 # ------------------------------------------
@@ -327,7 +314,7 @@ if analyze_clicked:
     st.session_state.supplier_handle = supplier_handle
 
     if search_mode == "Store/Supplier Search":
-        masked_id = fetch_supplier_profile(supplier_handle, cookie_input)
+        masked_id = fetch_supplier_profile(supplier_handle, cookie_input, ua_input)
         if masked_id:
             st.session_state.supplier_id = masked_id
         else:
@@ -339,14 +326,12 @@ if analyze_clicked:
             st.write(f"Fetching page {p}...")
 
             if search_mode == "Keyword Search":
-                raw_data = fetch_meesho_data(search_query, fetch_limit, st.session_state.page, st.session_state.offset,
-                                             st.session_state.cursor, st.session_state.search_session_id, cookie_input)
+                raw_data = fetch_meesho_data(search_query, fetch_limit, st.session_state.page, st.session_state.offset, st.session_state.cursor, st.session_state.search_session_id, cookie_input, ua_input)
                 if raw_data:
                     st.session_state.cursor = raw_data.get('cursor')
                     st.session_state.search_session_id = raw_data.get('search_session_id')
             else:
-                raw_data = fetch_supplier_feed(st.session_state.supplier_id, supplier_handle, fetch_limit,
-                                               st.session_state.offset, cookie_input)
+                raw_data = fetch_supplier_feed(st.session_state.supplier_id, supplier_handle, fetch_limit, st.session_state.offset, cookie_input, ua_input)
 
             if not raw_data:
                 st.write("Stopped due to API constraints or no more data.")
@@ -365,8 +350,7 @@ if analyze_clicked:
                 st.write("Reached the end of search results.")
                 break
 
-        status.update(label=f"Done! Fetched {len(st.session_state.all_products)} products total.", state="complete",
-                      expanded=False)
+        status.update(label=f"Done! Fetched {len(st.session_state.all_products)} products total.", state="complete", expanded=False)
 
 # ------------------------------------------
 # RENDER UI FROM SESSION STATE
@@ -387,11 +371,11 @@ if st.session_state.all_products:
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Products Found", len(df_all))
     col2.metric("Filtered Valid Trends", len(df_genuine))
-
+    
     if not df_genuine.empty:
         max_vel = df_genuine['Velocity (Ratings/Day)'].max()
         col3.metric("Highest Daily Velocity", f"{max_vel} / day")
-
+    
     st.divider()
 
     tab_main, tab_data, tab_suppliers = st.tabs([
@@ -420,17 +404,12 @@ if st.session_state.all_products:
                                 st.markdown(f"🔥 **Trend Score: {row['Trend Score']}**")
                                 st.caption(f"{row['Is Ad?']} | {row['Age (Days)']} Days Old")
 
-                                sup_cost_str = f"₹{row['Supplier Set Price (₹)']}" if pd.notna(
-                                    row['Supplier Set Price (₹)']) else "N/A"
-                                sell_price_str = f"₹{row['Selling Price (₹)']}" if pd.notna(
-                                    row['Selling Price (₹)']) else "N/A"
-                                log_cost_str = f"₹{row['Logistics Cost (₹)']}" if pd.notna(
-                                    row['Logistics Cost (₹)']) else "N/A"
-                                ship_adj_str = f"₹{row['Shipping Adjustment (₹)']}" if pd.notna(
-                                    row['Shipping Adjustment (₹)']) else "N/A"
+                                sup_cost_str = f"₹{row['Supplier Set Price (₹)']}" if pd.notna(row['Supplier Set Price (₹)']) else "N/A"
+                                sell_price_str = f"₹{row['Selling Price (₹)']}" if pd.notna(row['Selling Price (₹)']) else "N/A"
+                                log_cost_str = f"₹{row['Logistics Cost (₹)']}" if pd.notna(row['Logistics Cost (₹)']) else "N/A"
+                                ship_adj_str = f"₹{row['Shipping Adjustment (₹)']}" if pd.notna(row['Shipping Adjustment (₹)']) else "N/A"
 
-                                state_display = f"📍 **Local (RJ)**" if row[
-                                                                           'State Code'] == 'RJ' else f"🗺️ **State:** {row['State Code']}"
+                                state_display = f"📍 **Local (RJ)**" if row['State Code'] == 'RJ' else f"🗺️ **State:** {row['State Code']}"
 
                                 st.markdown(f"""
                                 * ⚡ **Velocity:** **{row['Velocity (Ratings/Day)']}** ratings/day
@@ -460,11 +439,10 @@ if st.session_state.all_products:
     with tab_data:
         st.markdown("### 🗄️ Raw Data Explorer")
         if not df_genuine.empty:
-            display_cols = ['Product Name', 'Velocity (Ratings/Day)', 'Trend Score', 'Est. Orders/Day', 'Total Ratings',
-                            'Total Reviews', '5-Star Ratings', 'Avg Rating', 'Supplier Set Price (₹)',
-                            'Selling Price (₹)', 'Logistics Cost (₹)', 'Shipping Adjustment (₹)', 'Age (Days)',
-                            'Product URL']
-
+            display_cols = ['Product Name', 'Velocity (Ratings/Day)', 'Trend Score', 'Est. Orders/Day', 'Total Ratings', 
+                            'Total Reviews', '5-Star Ratings', 'Avg Rating', 'Supplier Set Price (₹)', 
+                            'Selling Price (₹)', 'Logistics Cost (₹)', 'Shipping Adjustment (₹)', 'Age (Days)', 'Product URL']
+            
             st.dataframe(
                 df_genuine[display_cols],
                 use_container_width=True,
@@ -473,18 +451,16 @@ if st.session_state.all_products:
                     "Product URL": st.column_config.LinkColumn("Product URL", display_text="View on Meesho")
                 }
             )
-
+            
             csv = df_genuine.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Download Data as CSV", data=csv,
-                               file_name=f"meesho_trends_{search_query.replace(' ', '_')}.csv", mime="text/csv")
+            st.download_button("📥 Download Data as CSV", data=csv, file_name=f"meesho_trends_{search_query.replace(' ', '_')}.csv", mime="text/csv")
         else:
             st.info("No data available to display.")
 
     # TAB 3: TOP SUPPLIERS (SUPPLIER METRICS)
     with tab_suppliers:
         if not df_supplier.empty:
-            st.info(
-                "💡 **NOTE:** These are completely new or unrated products. The huge velocity and ratings shown below belong to the **Supplier's entire account**.")
+            st.info("💡 **NOTE:** These are completely new or unrated products. The huge velocity and ratings shown below belong to the **Supplier's entire account**.")
             df_supplier = df_supplier.sort_values(by="Velocity (Ratings/Day)", ascending=False)
 
             st.subheader(f"👑 Found {len(df_supplier)} New Products from Big Suppliers")
@@ -503,15 +479,11 @@ if st.session_state.all_products:
                                 st.markdown(f"👑 **Supplier Account Stats**")
                                 st.caption(f"{row['Is Ad?']} | Listed {row['Age (Days)']} Days Ago")
 
-                                sup_cost_str = f"₹{row['Supplier Set Price (₹)']}" if pd.notna(
-                                    row['Supplier Set Price (₹)']) else "N/A"
-                                sell_price_str = f"₹{row['Selling Price (₹)']}" if pd.notna(
-                                    row['Selling Price (₹)']) else "N/A"
-                                log_cost_str = f"₹{row['Logistics Cost (₹)']}" if pd.notna(
-                                    row['Logistics Cost (₹)']) else "N/A"
+                                sup_cost_str = f"₹{row['Supplier Set Price (₹)']}" if pd.notna(row['Supplier Set Price (₹)']) else "N/A"
+                                sell_price_str = f"₹{row['Selling Price (₹)']}" if pd.notna(row['Selling Price (₹)']) else "N/A"
+                                log_cost_str = f"₹{row['Logistics Cost (₹)']}" if pd.notna(row['Logistics Cost (₹)']) else "N/A"
 
-                                state_display = f"📍 **Local (RJ)**" if row[
-                                                                           'State Code'] == 'RJ' else f"🗺️ **State:** {row['State Code']}"
+                                state_display = f"📍 **Local (RJ)**" if row['State Code'] == 'RJ' else f"🗺️ **State:** {row['State Code']}"
 
                                 st.markdown(f"""
                                 * ⚡ **Sup. Velocity:** {row['Velocity (Ratings/Day)']}/day
@@ -532,8 +504,7 @@ if st.session_state.all_products:
                                     st.success(f"Safe RTO Level: {row['RTO Risk']}")
 
                                 if pd.notna(row['Product URL']) and row['Product URL']:
-                                    st.link_button("🛍️ Open for Manual Check", row['Product URL'],
-                                                   use_container_width=True)
+                                    st.link_button("🛍️ Open for Manual Check", row['Product URL'], use_container_width=True)
         else:
             st.warning("No high-rated supplier accounts found uploading new products in this batch.")
 
@@ -547,9 +518,7 @@ if st.session_state.all_products:
             if st.button("⬇️ Manually Fetch 1 More Page", use_container_width=True):
                 with st.spinner(f"Fetching next {fetch_limit} products..."):
                     if st.session_state.search_mode == "Keyword Search":
-                        raw_data = fetch_meesho_data(st.session_state.current_query, fetch_limit, st.session_state.page,
-                                                     st.session_state.offset, st.session_state.cursor,
-                                                     st.session_state.search_session_id, cookie_input)
+                        raw_data = fetch_meesho_data(st.session_state.current_query, fetch_limit, st.session_state.page, st.session_state.offset, st.session_state.cursor, st.session_state.search_session_id, cookie_input, ua_input)
                         if raw_data:
                             st.session_state.cursor = raw_data.get('cursor')
                             st.session_state.search_session_id = raw_data.get('search_session_id')
@@ -562,8 +531,7 @@ if st.session_state.all_products:
                             else:
                                 st.info("No more products found on Meesho for this query.")
                     elif st.session_state.search_mode == "Store/Supplier Search":
-                        raw_data = fetch_supplier_feed(st.session_state.supplier_id, st.session_state.supplier_handle,
-                                                       fetch_limit, st.session_state.offset, cookie_input)
+                        raw_data = fetch_supplier_feed(st.session_state.supplier_id, st.session_state.supplier_handle, fetch_limit, st.session_state.offset, cookie_input, ua_input)
                         if raw_data:
                             parsed_data = process_catalogs(raw_data)
                             if parsed_data:
