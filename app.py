@@ -77,7 +77,7 @@ def get_clean_headers(referer="", custom_cookie="", custom_ua=""):
         
     return headers
 
-def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_session_id=None, custom_cookie="", custom_ua=""):
+def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_session_id=None, custom_cookie="", custom_ua="", proxies=None):
     url = "https://www.meesho.com/api/v1/products/search"
     referer = f"https://www.meesho.com/search?q={query.replace(' ', '%20')}"
     headers = get_clean_headers(referer, custom_cookie, custom_ua)
@@ -97,9 +97,9 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
     try:
         if HAS_CFFI:
             # Changed impersonate to safari15_5 to drastically alter the TLS fingerprint
-            response = tls_requests.post(url, headers=headers, json=payload, impersonate="safari15_5", timeout=15)
+            response = tls_requests.post(url, headers=headers, json=payload, impersonate="safari15_5", timeout=15, proxies=proxies)
         else:
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            response = requests.post(url, headers=headers, json=payload, timeout=10, proxies=proxies)
             
         if response.status_code == 200:
             return response.json()
@@ -117,16 +117,16 @@ def fetch_meesho_data(query, limit=20, page=1, offset=0, cursor=None, search_ses
         st.error(f"Connection Error: {e}")
         return None
 
-def fetch_supplier_profile(handle, custom_cookie="", custom_ua=""):
+def fetch_supplier_profile(handle, custom_cookie="", custom_ua="", proxies=None):
     url = f"https://www.meesho.com/api/v1/meri-shop/profile?supplierHandle={handle}"
     referer = f"https://www.meesho.com/{handle}?ms=2"
     headers = get_clean_headers(referer, custom_cookie, custom_ua)
 
     try:
         if HAS_CFFI:
-            response = tls_requests.get(url, headers=headers, impersonate="safari15_5", timeout=15)
+            response = tls_requests.get(url, headers=headers, impersonate="safari15_5", timeout=15, proxies=proxies)
         else:
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(url, headers=headers, timeout=10, proxies=proxies)
             
         if response.status_code == 200:
             data = response.json()
@@ -142,7 +142,7 @@ def fetch_supplier_profile(handle, custom_cookie="", custom_ua=""):
     except Exception:
         return None
 
-def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="", custom_ua=""):
+def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="", custom_ua="", proxies=None):
     url = "https://www.meesho.com/api/v1/meri-shop/feed"
     referer = f"https://www.meesho.com/{handle}?ms=2&Sort[sort_by]=created&Sort[sort_order]=desc"
     headers = get_clean_headers(referer, custom_cookie, custom_ua)
@@ -161,9 +161,9 @@ def fetch_supplier_feed(supplier_id, handle, limit=20, offset=0, custom_cookie="
     }
     try:
         if HAS_CFFI:
-            response = tls_requests.post(url, headers=headers, json=payload, impersonate="safari15_5", timeout=15)
+            response = tls_requests.post(url, headers=headers, json=payload, impersonate="safari15_5", timeout=15, proxies=proxies)
         else:
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            response = requests.post(url, headers=headers, json=payload, timeout=10, proxies=proxies)
             
         if response.status_code == 200:
             return response.json()
@@ -338,7 +338,7 @@ if analyze_clicked:
     st.session_state.supplier_handle = supplier_handle
 
     if search_mode == "Store/Supplier Search":
-        masked_id = fetch_supplier_profile(supplier_handle, cookie_input, ua_input)
+        masked_id = fetch_supplier_profile(supplier_handle, cookie_input, ua_input, proxy_dict)
         if masked_id:
             st.session_state.supplier_id = masked_id
         else:
@@ -560,7 +560,7 @@ if st.session_state.all_products:
             if st.button("⬇️ Manually Fetch 1 More Page", use_container_width=True):
                 with st.spinner(f"Fetching next {fetch_limit} products..."):
                     if st.session_state.search_mode == "Keyword Search":
-                        raw_data = fetch_meesho_data(st.session_state.current_query, fetch_limit, st.session_state.page, st.session_state.offset, st.session_state.cursor, st.session_state.search_session_id, cookie_input, ua_input)
+                        raw_data = fetch_meesho_data(st.session_state.current_query, fetch_limit, st.session_state.page, st.session_state.offset, st.session_state.cursor, st.session_state.search_session_id, cookie_input, ua_input, proxy_dict)
                         if raw_data:
                             st.session_state.cursor = raw_data.get('cursor')
                             st.session_state.search_session_id = raw_data.get('search_session_id')
@@ -573,7 +573,7 @@ if st.session_state.all_products:
                             else:
                                 st.info("No more products found on Meesho for this query.")
                     elif st.session_state.search_mode == "Store/Supplier Search":
-                        raw_data = fetch_supplier_feed(st.session_state.supplier_id, st.session_state.supplier_handle, fetch_limit, st.session_state.offset, cookie_input, ua_input)
+                        raw_data = fetch_supplier_feed(st.session_state.supplier_id, st.session_state.supplier_handle, fetch_limit, st.session_state.offset, cookie_input, ua_input, proxy_dict)
                         if raw_data:
                             parsed_data = process_catalogs(raw_data)
                             if parsed_data:
